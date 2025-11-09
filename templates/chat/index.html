@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGNI | AI Voice Assistant</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;550;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css">
+
+    <style>
+        :root {
+            --color-cta-blue: #0070f3; --color-text-dark: #f0f0f0; --color-text-medium: #cccccc;
+            --color-text-light: #9a9a9a; --color-bg-soft: #121212; --color-note-border: rgba(255, 255, 255, 0.15);
+            --chat-window-bg: rgba(30, 30, 30, 0.6); --chat-element-bg: rgba(50, 50, 50, 0.7);
+            --font-family-sans: 'Inter', sans-serif; --border-radius-card: 1rem; --border-radius-btn: 0.5rem;
+            --transition-duration: 0.3s; --navbar-height: 5rem;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            font-family: var(--font-family-sans); color: var(--color-text-dark); background-color: var(--color-bg-soft);
+            line-height: 1.6; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .main-container {
+            flex-grow: 1; display: grid; grid-template-columns: 1fr; gap: 2rem;
+            padding: calc(var(--navbar-height) + 1rem) 2rem 2rem; width: 100%; z-index: 2; overflow-y: auto;
+        }
+        @media (min-width: 1024px) { .main-container { grid-template-columns: repeat(2, 1fr); overflow-y: hidden; } }
+        
+        .chat-container {
+            width: 100%; height: 100%; max-height: calc(100vh - var(--navbar-height) - 4rem);
+            background-color: var(--chat-window-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--border-radius-card); border: 1px solid var(--color-note-border);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.25); display: flex; flex-direction: column; overflow: hidden;
+        }
+        .chat-header {
+            padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-note-border); font-weight: 600;
+            display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+        }
+        .header-left { display: flex; align-items: center; gap: 0.75rem; }
+        .status-dot { width: 10px; height: 10px; background-color: #28a745; border-radius: 50%; }
+        .header-controls { display: flex; align-items: center; gap: 1rem; }
+        .icon-button { background: none; border: none; color: var(--color-text-light); font-size: 1.1rem; cursor: pointer; transition: color 0.2s; }
+        .icon-button:hover { color: var(--color-text-dark); }
+        .chat-messages { flex-grow: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .message { max-width: 80%; padding: 0.75rem 1.25rem; border-radius: 1.25rem; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
+        .bot-message { background-color: var(--chat-element-bg); border: 1px solid var(--color-note-border); align-self: flex-start; border-bottom-left-radius: 0.25rem; }
+        .user-message { background-color: var(--color-cta-blue); color: #ffffff; align-self: flex-end; border-bottom-right-radius: 0.25rem; }
+        .chat-input-form { display: flex; gap: 0.5rem; padding: 1rem 1.5rem; border-top: 1px solid var(--color-note-border); flex-shrink: 0; align-items: center;}
+        #chat-input { flex-grow: 1; padding: 0.75rem 1rem; border-radius: var(--border-radius-btn); border: 1px solid var(--color-note-border); background-color: var(--chat-element-bg); color: var(--color-text-dark); font-size: 1rem; }
+        .chat-input-form button { background-color: var(--color-cta-blue); color: white; border: none; width: 44px; height: 44px; border-radius: var(--border-radius-btn); cursor: pointer; font-size: 1.1rem; flex-shrink: 0; }
+        #mic-button.is-listening { background-color: #ea4335; }
+
+        .compiler-wrapper { display: flex; flex-direction: column; gap: 1.5rem; height: calc(100vh - var(--navbar-height) - 4rem); overflow-y: auto; }
+        @media (max-width: 1023px) { .compiler-wrapper { height: auto; overflow-y: visible; } }
+        .compiler-card { background-color: var(--chat-window-bg); backdrop-filter: blur(12px); border-radius: var(--border-radius-card); border: 1px solid var(--color-note-border); box-shadow: 0 15px 50px rgba(0,0,0,0.25); padding: 1.5rem; }
+        
+        /* --- Naya Change Yahan Hai --- */
+        .compiler-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .compiler-card-header h3 { font-size: 1.2rem; font-weight: 600; margin: 0; }
+        #language {
+            padding: 0.5rem 0.75rem; /* Chhota size */
+            border-radius: var(--border-radius-btn);
+            border: 1px solid var(--color-note-border);
+            background-color: var(--chat-element-bg);
+            color: var(--color-text-dark);
+            font-size: 0.9rem;
+        }
+        /* --- Naya Change End --- */
+
+        .CodeMirror { height: 400px; border: 1px solid var(--color-note-border); border-radius: var(--border-radius-btn); }
+        #run-button { width: 100%; background-color: #34a853; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: var(--border-radius-btn); cursor: pointer; font-size: 1rem; font-weight: 600; }
+        #output { background: #121212; padding: 1rem; border-radius: var(--border-radius-btn); white-space: pre-wrap; min-height: 80px; font-family: monospace; border: 1px solid var(--color-note-border); }
+        .floating-elements { position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 1; }
+        .floating-elements li { position: absolute; display: flex; justify-content: center; align-items: center; list-style: none; color: var(--color-text-medium); background: var(--chat-element-bg); border: 1px solid var(--color-note-border); border-radius: 12px; backdrop-filter: blur(5px); top: -180px; animation: animateDown 25s linear infinite; }
+        .floating-elements li:nth-child(1) { left: 25%; width: 60px; height: 60px; font-size: 2.2rem; animation-duration: 22s; }
+        .floating-elements li:nth-child(2) { left: 10%; width: 45px; height: 45px; font-size: 1.5rem; animation-duration: 18s; animation-delay: 2s; }
+        .floating-elements li:nth-child(3) { left: 70%; width: 50px; height: 50px; font-size: 1.8rem; animation-duration: 32s; animation-delay: 4s; }
+        @keyframes animateDown { 0% { opacity: 0; transform: translateY(0) rotate(0deg); } 10%, 90% { opacity: 1; } 100% { opacity: 0; transform: translateY(100vh) rotate(720deg); } }
+    </style>
+</head>
+<body>
+
+    <ul class="floating-elements"> <li><i class="fab fa-python"></i></li> <li><i class="fab fa-js-square"></i></li> <li><i class="fas fa-database"></i></li> </ul>
+
+    <main class="main-container">
+        <div class="chat-container">
+             <div class="chat-header">
+                <div class="header-left"> <span class="status-dot"></span> <span>AGNI AI Assistant</span> </div>
+                <div class="header-controls">
+                    <button id="toggle-voice-btn" class="icon-button" title="Enable Voice Response"> <i class="fas fa-volume-off"></i> </button>
+                    <a href="{% url 'dashboard' %}" class="back-to-dash" style="text-decoration: none;">Dashboard</a>
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages"> {% if chat_history %}{% for msg in chat_history %}<div class="message user-message">{{ msg.user }}</div><div class="message bot-message">{{ msg.bot }}</div>{% endfor %}{% endif %} </div>
+            <form class="chat-input-form" id="chat-form">
+                {% csrf_token %}
+                <input type="text" id="chat-input" placeholder="Type or click the mic to talk..." autocomplete="off" required>
+                <button type="button" id="mic-button" title="Start Listening"><i class="fas fa-microphone"></i></button>
+                <button type="submit" title="Send Message"><i class="fas fa-paper-plane"></i></button>
+            </form>
+        </div>
+
+        <div class="compiler-wrapper">
+            <div class="compiler-card">
+                <div class="compiler-card-header">
+                    <h3>Code Editor</h3>
+                    <select id="language">
+                        <option value="python">Python</option> <option value="c">C</option>
+                        <option value="cpp">C++</option> <option value="java">Java</option>
+                    </select>
+                </div>
+                <textarea id="code" style="display: none;">#Code here..</textarea>
+            </div>
+            <div class="compiler-card">
+                <h3>Controls & Output</h3>
+                <button id="run-button" onclick="runCode()">▶ Run Code</button>
+                <pre id="output" class="mt-4">...</pre>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/clike/clike.min.js"></script>
+    
+    <script>
+    // --- Chat Functionality ---
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const chatMessages = document.getElementById('chat-messages');
+
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendMessage(sender, message, isError = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender.toLowerCase()}-message ${isError ? 'error-message' : ''}`;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.textContent = message;
+        
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        scrollToBottom();
+    }
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        appendMessage('User', message);
+        userInput.value = '';
+        userInput.disabled = true; // Disable input while waiting
+
+        try {
+            const response = await fetch("{% url 'chat' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ message: message })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                appendMessage('Bot', data.bot_response);
+            } else {
+                appendMessage('Bot', data.error || "Something went wrong.", true);
+            }
+
+        } catch (error) {
+            console.error('Chat Error:', error);
+            appendMessage('Bot', "Network error. Please check your connection.", true);
+        } finally {
+            userInput.disabled = false;
+            userInput.focus();
+        }
+    });
+
+    // --- Code Editor Functionality ---
+    document.getElementById('run-code-btn').addEventListener('click', async () => {
+        const code = editor.getValue();
+        const languageSelect = document.getElementById('language-select');
+        const language = languageSelect.value;
+        const outputElement = document.getElementById('code-output');
+        const runBtn = document.getElementById('run-code-btn');
+
+        outputElement.textContent = "Running...";
+        runBtn.disabled = true;
+
+        try {
+            const response = await fetch("{% url 'run_code' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ code: code, language: language })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                outputElement.textContent = data.output;
+            } else {
+                outputElement.textContent = `Error: ${data.error || 'Unknown error occurred'}\n${data.details || ''}`;
+            }
+
+        } catch (error) {
+            outputElement.textContent = "Network Error: Could not reach the server.";
+            console.error('Execution Error:', error);
+        } finally {
+            runBtn.disabled = false;
+        }
+    });
+
+    // Initial scroll
+    scrollToBottom();
+</script>
